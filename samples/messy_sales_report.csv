@@ -1,0 +1,6 @@
+Lead,contact,notes,when,status,who
+"Doe, John",john@example.com / 9876543210,Asked for demo reschedule,13/05/2026 14:20,hot,test@gmail.com
+Sarah Johnson,sarah.johnson@example.com,"Busy, will try again next week",13/05/2026,couldn't connect,test@gmail.com
+Rajesh Patel,+91-98765-43212,not interested,2026-05-13,cold/junk,test@gmail.com
+,,empty row should be handled,,,
+Priya Singh,priya.singh@example.com,"Deal closed, onboarding in progress. Alt: 8887776665",May 13 2026,won,test@gmail.com

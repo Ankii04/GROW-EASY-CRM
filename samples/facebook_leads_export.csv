@@ -1,0 +1,6 @@
+id,created_time,full_name,email,phone_number,campaign_name,ad_name,city,platform
+l:1023,2026-06-29T10:00:00+05:30,Rahil Mohammad,rahil@test.com,+919579291234,Eden Park Phase 2,Carousel A,Bengaluru,fb
+l:1024,2026-06-29T10:04:12+05:30,Tarvinder Pal,tarvinderpal@beauty.com,+919811362211,Eden Park Phase 2,Carousel A,Delhi,ig
+l:1025,2026-06-29T10:11:45+05:30,Dhruv Blaht,,+919711564400,Sarjapur Plots Jun,Video B,Bengaluru,fb
+l:1026,2026-06-29T10:15:02+05:30,Amit Raheja,amit.raheja@gmail.com,+919990110022,Meridian Tower Launch,Lead form,Gurugram,fb
+l:1027,2026-06-29T10:20:33+05:30,No Contact Lead,,,Eden Park Phase 2,Carousel B,Pune,fb
