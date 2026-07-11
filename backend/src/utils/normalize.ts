@@ -46,6 +46,32 @@ export function isValidEmail(value: string): boolean {
   return EMAIL_RE.test(value);
 }
 
+/**
+ * Rule 5 safety net: if a field the AI put in `email` actually contains more
+ * than one address (model missed the split), keep the first and return the
+ * rest so the caller can append them to crm_note instead of losing them.
+ */
+export function splitExtraEmails(value: string): { first: string; extras: string[] } {
+  const matches = value.match(new RegExp(EMAIL_RE.source, 'gi')) ?? [];
+  if (matches.length <= 1) return { first: value.trim(), extras: [] };
+  return { first: matches[0] ?? value.trim(), extras: matches.slice(1) };
+}
+
+/**
+ * Rule 5 safety net: if `mobile_without_country_code` actually contains
+ * several phone numbers (model missed the split), keep the first and return
+ * the rest so the caller can append them to crm_note instead of losing them.
+ */
+export function splitExtraPhones(value: string): { first: string; extras: string[] } {
+  const parts = value
+    .split(/[,;/|]+|\s{2,}|\band\b/i)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const phoneish = parts.filter((p) => digitsOnly(p).length >= 7);
+  if (phoneish.length <= 1) return { first: value.trim(), extras: [] };
+  return { first: phoneish[0] ?? value.trim(), extras: phoneish.slice(1) };
+}
+
 /** Strip everything but digits from a phone value. */
 export function digitsOnly(value: string): string {
   return value.replace(/\D+/g, '');
@@ -104,6 +130,18 @@ export function finalizeRecord(
   record.crm_status = normalizeEnum<CrmStatus>(record.crm_status, CRM_STATUSES);
   record.data_source = normalizeEnum<DataSource>(record.data_source, DATA_SOURCES);
 
+  // Rule 5 safety net: extra phone numbers the AI left bunched together
+  // → keep the first, move the rest to crm_note (deterministic, not prompt-only).
+  if (record.mobile_without_country_code) {
+    const { first, extras } = splitExtraPhones(record.mobile_without_country_code);
+    record.mobile_without_country_code = first;
+    if (extras.length) {
+      record.crm_note = [record.crm_note, `Extra phone number(s): ${extras.join(', ')}`]
+        .filter(Boolean)
+        .join(' | ');
+    }
+  }
+
   // Phone hygiene: keep country code and number in their own fields.
   if (record.mobile_without_country_code) {
     const { countryCode, mobile } = splitPhone(
@@ -114,6 +152,18 @@ export function finalizeRecord(
     if (countryCode) record.country_code = countryCode;
   }
   record.country_code = normalizeCountryCode(record.country_code);
+
+  // Rule 5 safety net: extra email addresses the AI left bunched together
+  // → keep the first, move the rest to crm_note (deterministic, not prompt-only).
+  if (record.email) {
+    const { first, extras } = splitExtraEmails(record.email);
+    record.email = first;
+    if (extras.length) {
+      record.crm_note = [record.crm_note, `Extra email(s): ${extras.join(', ')}`]
+        .filter(Boolean)
+        .join(' | ');
+    }
+  }
 
   // Email hygiene: a non-email value in the email field is worse than a blank.
   if (record.email && !isValidEmail(record.email)) {

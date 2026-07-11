@@ -6,6 +6,8 @@ import {
   isParseableDate,
   normalizeCountryCode,
   normalizeEnum,
+  splitExtraEmails,
+  splitExtraPhones,
   splitPhone,
 } from '../normalize.js';
 import { CRM_STATUSES } from '../../types/crm.js';
@@ -56,6 +58,30 @@ describe('splitPhone / normalizeCountryCode', () => {
   });
 });
 
+describe('splitExtraEmails / splitExtraPhones (assignment rule 5)', () => {
+  it('keeps the first email and returns the rest as extras', () => {
+    expect(splitExtraEmails('john@example.com, backup@example.com')).toEqual({
+      first: 'john@example.com',
+      extras: ['backup@example.com'],
+    });
+    expect(splitExtraEmails('solo@example.com')).toEqual({
+      first: 'solo@example.com',
+      extras: [],
+    });
+  });
+
+  it('keeps the first phone number and returns the rest as extras', () => {
+    expect(splitExtraPhones('9876543210 / 9123456780')).toEqual({
+      first: '9876543210',
+      extras: ['9123456780'],
+    });
+    expect(splitExtraPhones('9876543210')).toEqual({
+      first: '9876543210',
+      extras: [],
+    });
+  });
+});
+
 describe('finalizeRecord', () => {
   it('imports a record that has valid contact information', () => {
     const result = finalizeRecord({
@@ -97,5 +123,16 @@ describe('finalizeRecord', () => {
   it('blanks out-of-vocabulary data_source values', () => {
     const result = finalizeRecord({ email: 'a@b.com', data_source: 'Facebook Ads' });
     expect(result.record?.data_source).toBe('');
+  });
+
+  it('keeps the first email/phone and moves extras to crm_note even if the AI bunched them together (rule 5)', () => {
+    const result = finalizeRecord({
+      email: 'primary@example.com, secondary@example.com',
+      mobile_without_country_code: '9876543210 / 9123456780',
+    });
+    expect(result.record?.email).toBe('primary@example.com');
+    expect(result.record?.mobile_without_country_code).toBe('9876543210');
+    expect(result.record?.crm_note).toContain('secondary@example.com');
+    expect(result.record?.crm_note).toContain('9123456780');
   });
 });

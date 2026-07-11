@@ -1,4 +1,4 @@
-import { CRM_STATUSES, DATA_SOURCES, type RawRow } from '../types/crm.js';
+import { CRM_STATUSES, DATA_SOURCES } from '../types/crm.js';
 
 /**
  * Prompt engineering notes
@@ -41,6 +41,6 @@ If a row contains neither an email address nor a phone number anywhere in it, se
 Every string value must be a single line. Output valid JSON only.`;
 
 /** Build the per-batch user message. */
-export function buildUserPrompt(rows: Array<RawRow & { __row: number }>): string {
+export function buildUserPrompt(rows: Array<Record<string, string | number>>): string {
   return `Map the following ${rows.length} row(s) to GrowEasy CRM format. Respond with JSON only.\n\n${JSON.stringify(rows)}`;
 }
