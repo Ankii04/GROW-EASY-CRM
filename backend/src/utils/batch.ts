@@ -46,6 +46,22 @@ export interface RetryOptions {
   onRetry?: (attempt: number, error: unknown) => void;
 }
 
+/**
+ * Rate-limit (429) responses need to outwait the provider's per-minute window,
+ * not the normal backoff curve — retrying after a few seconds just burns more
+ * quota while the limit is still active.
+ */
+const RATE_LIMIT_DELAY_MS = 30_000;
+
+function isRateLimitError(error: unknown): boolean {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    (error as { status: unknown }).status === 429
+  );
+}
+
 /** Retry an async function with exponential backoff + jitter. */
 export async function withRetry<T>(
   fn: () => Promise<T>,
@@ -59,8 +75,10 @@ export async function withRetry<T>(
       lastError = error;
       if (attempt > retries) break;
       onRetry?.(attempt, error);
-      const delay =
-        Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs) * (0.75 + Math.random() * 0.5);
+      const backoff = isRateLimitError(error)
+        ? RATE_LIMIT_DELAY_MS * attempt
+        : Math.min(baseDelayMs * 2 ** (attempt - 1), maxDelayMs);
+      const delay = backoff * (0.75 + Math.random() * 0.5);
       await new Promise((r) => setTimeout(r, delay));
     }
   }

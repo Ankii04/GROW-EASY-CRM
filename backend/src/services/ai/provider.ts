@@ -80,13 +80,22 @@ const geminiClient: AiClient = {
   name: 'gemini',
   async complete(system, user) {
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${env.GEMINI_MODEL}:generateContent?key=${requireApiKey()}`;
+    // 2.5 Flash models spend "thinking" tokens by default — pure overhead for a
+    // structured mapping task, and it drains the free-tier token quota fast.
+    // thinkingBudget: 0 turns it off (2.5 Pro does not allow disabling it).
+    const supportsThinkingBudget =
+      env.GEMINI_MODEL.includes('2.5-flash');
     const data = await postJson(
       url,
       {},
       {
         systemInstruction: { parts: [{ text: system }] },
         contents: [{ role: 'user', parts: [{ text: user }] }],
-        generationConfig: { temperature: 0, responseMimeType: 'application/json' },
+        generationConfig: {
+          temperature: 0,
+          responseMimeType: 'application/json',
+          ...(supportsThinkingBudget ? { thinkingConfig: { thinkingBudget: 0 } } : {}),
+        },
       },
       'Gemini',
     );
