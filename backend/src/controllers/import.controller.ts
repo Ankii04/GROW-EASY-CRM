@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express';
 import { CsvParseError, parseCsv } from '../services/csv.service.js';
 import { runImport } from '../services/extraction.service.js';
-import type { BatchResult, ImportEvent, ImportSummary } from '../types/crm.js';
+import type { BatchResult, ImportEvent, ImportSummary, SkippedRecord } from '../types/crm.js';
 
 /**
  * POST /api/import
@@ -74,18 +74,19 @@ export async function importCsvSync(req: Request, res: Response): Promise<void> 
   }
 
   const batches: BatchResult[] = [];
+  const duplicates: SkippedRecord[] = [];
   let summary: ImportSummary | null = null;
 
   await runImport(rows, (event) => {
     if (event.type === 'batch') batches.push(event.result);
+    if (event.type === 'duplicates') duplicates.push(...event.skipped);
     if (event.type === 'done') summary = event.summary;
   });
 
   const imported = batches
     .flatMap((b) => b.imported)
     .sort((a, b) => a.rowIndex - b.rowIndex);
-  const skipped = batches
-    .flatMap((b) => b.skipped)
+  const skipped = [...batches.flatMap((b) => b.skipped), ...duplicates]
     .sort((a, b) => a.rowIndex - b.rowIndex);
 
   res.json({ summary, imported, skipped });

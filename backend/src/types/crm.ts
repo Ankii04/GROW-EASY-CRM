@@ -21,6 +21,13 @@ export const DATA_SOURCES = [
 export type CrmStatus = (typeof CRM_STATUSES)[number];
 export type DataSource = (typeof DATA_SOURCES)[number];
 
+/**
+ * Lead quality rating, mirroring the Quality column in the GrowEasy CRM UI.
+ * Scored by the AI in the same call as extraction (zero extra API cost).
+ */
+export const LEAD_QUALITIES = ['HOT', 'WARM', 'COLD'] as const;
+export type LeadQuality = (typeof LEAD_QUALITIES)[number];
+
 export const CRM_FIELDS = [
   'created_at',
   'name',
@@ -54,10 +61,17 @@ export interface SkippedRecord {
   raw: RawRow;
 }
 
+/** An imported record plus provenance and the AI's quality assessment. */
+export type ImportedRecord = CrmRecord & {
+  rowIndex: number;
+  lead_quality: LeadQuality | '';
+  quality_reason: string;
+};
+
 /** Result of processing one batch of rows. */
 export interface BatchResult {
   batchIndex: number;
-  imported: Array<CrmRecord & { rowIndex: number }>;
+  imported: ImportedRecord[];
   skipped: SkippedRecord[];
   attempts: number;
 }
@@ -67,6 +81,7 @@ export interface ImportSummary {
   totalRows: number;
   imported: number;
   skipped: number;
+  duplicates: number;
   batches: number;
   failedBatches: number;
   durationMs: number;
@@ -75,6 +90,7 @@ export interface ImportSummary {
 /** NDJSON stream events emitted while an import is in progress. */
 export type ImportEvent =
   | { type: 'meta'; totalRows: number; totalBatches: number; batchSize: number }
+  | { type: 'duplicates'; skipped: SkippedRecord[] }
   | { type: 'batch'; result: BatchResult }
   | { type: 'batch_error'; batchIndex: number; error: string }
   | { type: 'done'; summary: ImportSummary }

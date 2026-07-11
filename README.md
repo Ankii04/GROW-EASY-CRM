@@ -28,6 +28,14 @@ Two layers of correctness:
 1. **The prompt** (`backend/src/prompts/extraction.prompt.ts`) does the intelligent work — mapping by *meaning* (`"WhatsApp No"` → mobile, `"Remarks"` → `crm_note`), status vocabulary mapping (`"ringing"` → `DID_NOT_CONNECT`), DD/MM vs MM/DD disambiguation, first-email/first-phone rules with the rest appended to `crm_note`.
 2. **A deterministic validator** (`backend/src/utils/normalize.ts`) is the gatekeeper — models are probabilistic, so enum membership, `new Date()` parseability, phone/country-code splitting, line-break escaping, and the "no email + no mobile → skip" rule are all enforced in code. A bad model response can never write malformed data.
 
+## Beyond the assignment
+
+Three features built specifically around how GrowEasy works as a product (AI-qualified leads, clean CRM pipelines):
+
+- 🔥 **AI lead-quality scoring** — every imported lead gets a **HOT / WARM / COLD** rating with a one-line justification ("Site visit booked and budget confirmed"), mirroring the Quality column in the GrowEasy CRM. Scored in the *same* AI call as extraction, so it costs zero extra API requests.
+- 🧹 **Duplicate lead detection** — rows sharing an email or phone number (matched across formats: `+91 98765 43210` ≡ `09876543210` ≡ `9876543210`) are caught **before** anything is sent to the AI. The CRM stays clean and no AI quota is wasted on redundant rows. Duplicates are reported with a pointer to the surviving row.
+- 📊 **Import insights** — after import, the results screen shows the quality distribution and CRM-status breakdown at a glance, so a sales manager knows where to start calling.
+
 ## Features
 
 - ✅ Drag & drop **and** file-picker upload (`.csv`, max 5 MB)
@@ -116,10 +124,11 @@ GEMINI_API_KEY=your_key docker compose up --build
 Multipart form with a `file` field. Responds `200` with `application/x-ndjson`; one JSON event per line:
 
 ```jsonc
-{"type":"meta","totalRows":120,"totalBatches":6,"batchSize":20}
-{"type":"batch","result":{"batchIndex":0,"imported":[/* CRM records */],"skipped":[{"rowIndex":4,"reason":"…","raw":{}}],"attempts":1}}
-{"type":"batch_error","batchIndex":3,"error":"…"}        // only if all retries failed
-{"type":"done","summary":{"totalRows":120,"imported":112,"skipped":8,"batches":6,"failedBatches":0,"durationMs":9421}}
+{"type":"meta","totalRows":120,"totalBatches":3,"batchSize":40}
+{"type":"duplicates","skipped":[{"rowIndex":7,"reason":"Duplicate lead — same contact as row 3","raw":{}}]}
+{"type":"batch","result":{"batchIndex":0,"imported":[/* CRM records + lead_quality/quality_reason */],"skipped":[{"rowIndex":4,"reason":"…","raw":{}}],"attempts":1}}
+{"type":"batch_error","batchIndex":2,"error":"…"}        // only if all retries failed
+{"type":"done","summary":{"totalRows":120,"imported":110,"skipped":10,"duplicates":1,"batches":3,"failedBatches":0,"durationMs":9421}}
 ```
 
 ### `POST /api/import/sync` — buffered

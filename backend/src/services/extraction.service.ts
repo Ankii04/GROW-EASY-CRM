@@ -1,14 +1,24 @@
 import { env } from '../config/env.js';
 import { SYSTEM_PROMPT, buildUserPrompt } from '../prompts/extraction.prompt.js';
-import type { BatchResult, ImportEvent, RawRow, SkippedRecord } from '../types/crm.js';
+import {
+  LEAD_QUALITIES,
+  type BatchResult,
+  type ImportEvent,
+  type LeadQuality,
+  type RawRow,
+  type SkippedRecord,
+} from '../types/crm.js';
 import { chunk, runPool, withRetry } from '../utils/batch.js';
-import { asCleanString, finalizeRecord } from '../utils/normalize.js';
+import { dedupeRows } from '../utils/dedupe.js';
+import { asCleanString, finalizeRecord, normalizeEnum } from '../utils/normalize.js';
 import { extractJson, getAiClient } from './ai/provider.js';
 
 interface AiRowResult extends Record<string, unknown> {
   __row?: number;
   skip?: boolean;
   skip_reason?: string;
+  __quality?: string;
+  __quality_reason?: string;
 }
 
 /**
@@ -69,7 +79,15 @@ async function processBatch(
 
     const finalized = finalizeRecord(aiRecord);
     if (finalized.record) {
-      result.imported.push({ ...finalized.record, rowIndex });
+      result.imported.push({
+        ...finalized.record,
+        rowIndex,
+        lead_quality: normalizeEnum<LeadQuality>(
+          asCleanString(aiRecord.__quality),
+          LEAD_QUALITIES,
+        ),
+        quality_reason: asCleanString(aiRecord.__quality_reason),
+      });
     } else {
       result.skipped.push({ rowIndex, raw, reason: finalized.skipReason });
     }
@@ -87,8 +105,11 @@ export async function runImport(
   emit: (event: ImportEvent) => void,
 ): Promise<void> {
   const startedAt = Date.now();
-  const indexed = rows.map((raw, rowIndex) => ({ rowIndex, raw }));
-  const batches = chunk(indexed, env.BATCH_SIZE);
+
+  // Duplicate leads are caught BEFORE the AI sees them: the CRM stays clean
+  // and no quota is spent mapping rows that would be discarded anyway.
+  const { unique, duplicates } = dedupeRows(rows);
+  const batches = chunk(unique, env.BATCH_SIZE);
 
   emit({
     type: 'meta',
@@ -96,9 +117,12 @@ export async function runImport(
     totalBatches: batches.length,
     batchSize: env.BATCH_SIZE,
   });
+  if (duplicates.length > 0) {
+    emit({ type: 'duplicates', skipped: duplicates });
+  }
 
   let imported = 0;
-  let skipped = 0;
+  let skipped = duplicates.length;
   let failedBatches = 0;
 
   const tasks = batches.map((batch, i) => () => processBatch(i, batch));
@@ -134,6 +158,7 @@ export async function runImport(
       totalRows: rows.length,
       imported,
       skipped,
+      duplicates: duplicates.length,
       batches: batches.length,
       failedBatches,
       durationMs: Date.now() - startedAt,

@@ -79,6 +79,10 @@ export default function Home() {
                 totalBatches: event.totalBatches,
               }));
               break;
+            case 'duplicates':
+              setSkipped((prev) => [...prev, ...event.skipped]);
+              setProgress((p) => ({ ...p, skipped: p.skipped + event.skipped.length }));
+              break;
             case 'batch':
               setImported((prev) => [...prev, ...event.result.imported]);
               setSkipped((prev) => [...prev, ...event.result.skipped]);

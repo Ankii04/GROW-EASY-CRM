@@ -10,6 +10,8 @@ interface DataTableProps {
   rows: string[][];
   /** Optional extra class per row, e.g. to tint skipped rows. */
   rowClassName?: (rowIndex: number) => string;
+  /** Optional custom renderer for a cell (e.g. badges); falls back to plain text. */
+  renderCell?: (value: string, colIndex: number) => React.ReactNode | undefined;
   maxHeight?: number;
   emptyMessage?: string;
 }
@@ -24,6 +26,7 @@ export function DataTable({
   headers,
   rows,
   rowClassName,
+  renderCell,
   maxHeight = 480,
   emptyMessage = 'No rows to display',
 }: DataTableProps) {
@@ -91,7 +94,8 @@ export function DataTable({
                 <td className="table-cell-base text-neutral-400">{rowIndex + 1}</td>
                 {cells.map((value, c) => (
                   <td key={c} className="table-cell-base max-w-[26rem] truncate" title={value}>
-                    {value || <span className="text-neutral-300 dark:text-neutral-600">—</span>}
+                    {renderCell?.(value, c) ??
+                      (value || <span className="text-neutral-300 dark:text-neutral-600">—</span>)}
                   </td>
                 ))}
               </tr>

@@ -18,7 +18,7 @@ export const SYSTEM_PROMPT = `You are a meticulous data-migration engine that ma
 You will receive a JSON array of rows. Each row is an object whose keys are the ORIGINAL column headers from the uploaded file (they can be anything, in any language, or even unnamed like "column_3"), plus a "__row" integer you must echo back unchanged.
 
 Return ONLY a JSON object of this exact shape, with no markdown fences and no commentary:
-{"records":[{ "__row": <int>, "skip": <bool>, "skip_reason": <string, only when skip is true>, "created_at": "", "name": "", "email": "", "country_code": "", "mobile_without_country_code": "", "company": "", "city": "", "state": "", "country": "", "lead_owner": "", "crm_status": "", "crm_note": "", "data_source": "", "possession_time": "", "description": "" }]}
+{"records":[{ "__row": <int>, "skip": <bool>, "skip_reason": <string, only when skip is true>, "__quality": "HOT"|"WARM"|"COLD", "__quality_reason": <string, max 12 words>, "created_at": "", "name": "", "email": "", "country_code": "", "mobile_without_country_code": "", "company": "", "city": "", "state": "", "country": "", "lead_owner": "", "crm_status": "", "crm_note": "", "data_source": "", "possession_time": "", "description": "" }]}
 
 Return exactly one output object per input row, in the same order.
 
@@ -34,6 +34,11 @@ FIELD MAPPING RULES
 9. possession_time: only for property/real-estate possession timing (e.g. "Ready to move", "Dec 2027", "2 years"). description: longer free-text describing the lead or requirement.
 10. lead_owner: the salesperson/agent/assignee the lead belongs to (name or email).
 11. Clean obvious noise: trim whitespace, fix stray quotes, title-case ALL-CAPS names, but do not otherwise rewrite the user's data.
+12. __quality: rate every non-skipped lead like a sales manager triaging a pipeline.
+   - HOT: sale already done, demo booked, site visit scheduled, budget stated, explicit buying intent, or asked to be contacted.
+   - COLD: not interested, wrong number, junk/spam data, repeated failed contact attempts, or the row has almost no usable information beyond a bare contact.
+   - WARM: everything in between — reachable but undecided, incomplete signals, or no engagement evidence either way.
+   Base the rating ONLY on evidence in the row (status, remarks, recency, completeness). Put a short justification in __quality_reason (e.g. "Demo rescheduled twice, still engaged").
 
 SKIP RULE
 If a row contains neither an email address nor a phone number anywhere in it, set "skip": true with a short "skip_reason" and leave the other fields empty. Never skip for any other reason.

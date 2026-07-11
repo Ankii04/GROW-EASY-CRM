@@ -19,7 +19,15 @@ export const CRM_FIELDS = [
 ] as const;
 
 export type CrmField = (typeof CRM_FIELDS)[number];
-export type CrmRecord = Record<CrmField, string> & { rowIndex: number };
+
+export const LEAD_QUALITIES = ['HOT', 'WARM', 'COLD'] as const;
+export type LeadQuality = (typeof LEAD_QUALITIES)[number];
+
+export type CrmRecord = Record<CrmField, string> & {
+  rowIndex: number;
+  lead_quality: LeadQuality | '';
+  quality_reason: string;
+};
 
 export type RawRow = Record<string, string>;
 
@@ -40,6 +48,7 @@ export interface ImportSummary {
   totalRows: number;
   imported: number;
   skipped: number;
+  duplicates: number;
   batches: number;
   failedBatches: number;
   durationMs: number;
@@ -47,6 +56,7 @@ export interface ImportSummary {
 
 export type ImportEvent =
   | { type: 'meta'; totalRows: number; totalBatches: number; batchSize: number }
+  | { type: 'duplicates'; skipped: SkippedRecord[] }
   | { type: 'batch'; result: BatchResult }
   | { type: 'batch_error'; batchIndex: number; error: string }
   | { type: 'done'; summary: ImportSummary }
