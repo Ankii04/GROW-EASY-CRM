@@ -2,7 +2,7 @@
 
 Import CRM leads from **any** CSV layout — Facebook Lead exports, Google Ads exports, other CRMs, sales reports, hand-made spreadsheets. The system parses the file, previews it, and then uses an LLM to semantically map arbitrary columns into the GrowEasy CRM schema, streaming progress back to the browser batch by batch.
 
-> **Position applied for:** _Software Developer Intern / Full-Time (set before submitting)_
+> **Position applied for:** Software Developer (Full-Time)
 > **Hosted app:** _add URL after deployment_ · **API:** _add URL after deployment_
 
 ---
